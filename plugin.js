@@ -1,5 +1,5 @@
 /**
- * Workspace Statistics Plugin for Thymer
+ * Workspace Statistics Plugin for Thymer v1.02
  * 
  * Shows comprehensive statistics about your workspace including:
  * - Collections, records, and content counts
@@ -105,6 +105,8 @@ class Plugin extends AppPlugin {
     
     // Get all collections
     const collections = await this.data.getAllCollections();
+    const config = this.getConfiguration();
+    const excludeJournalFromEmpty = config.custom?.emptyRecordsExcludeJournal !== false;
     
     for (const collection of collections) {
       const collectionData = {
@@ -153,10 +155,10 @@ class Plugin extends AppPlugin {
         
         collectionData.records.push(recordData);
         
-        // Track largest records
+        // Track largest records and empty records (optionally exclude journal collections)
         if (lineItems.length > 0) {
           stats.largestRecords.push(recordData);
-        } else {
+        } else if (!excludeJournalFromEmpty || !collection.isJournalPlugin()) {
           stats.emptyRecords.push(recordData);
         }
       }

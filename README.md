@@ -58,6 +58,8 @@ In the plugin’s **Configuration** (or in `plugin.json`), you can show or hide 
 | Empty records      | `showEmptyRecords`   | `true` |
 | Users              | `showUsers`          | `true` |
 
+**Empty records section:** `custom.emptyRecordsExcludeJournal` (default `true`) — when `true`, journal collection records are not listed in the Empty records section.
+
 Example (hide empty records and users):
 
 ```json
@@ -65,7 +67,8 @@ Example (hide empty records and users):
   "sections": {
     "showEmptyRecords": false,
     "showUsers": false
-  }
+  },
+  "emptyRecordsExcludeJournal": true
 }
 ```
 
