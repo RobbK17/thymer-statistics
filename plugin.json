@@ -1,6 +1,6 @@
 {
-  "ver": 1.02,
-  "name": "Workspace Statistics",
+  "ver": 1,
+  "name": "Stats Dashboard",
   "icon": "chart-bar",
   "item_name": "Note",
   "description": "Comprehensive statistics and analytics for your Thymer workspace",
@@ -17,18 +17,8 @@
     "sidebar": false
   },
   "custom": {
-    "sections": {
-      "showOverview": true,
-      "showCollections": true,
-      "showContentTypes": true,
-      "showTaskStatuses": true,
-      "showPropertyTypes": true,
-      "showViewTypes": true,
-      "showLargestRecords": true,
-      "showEmptyRecords": true,
-      "showUsers": true
-    },
     "emptyRecordsExcludeJournal": true
   },
-  "home": false
+  "home": false,
+  "version": "1.0.3"
 }
