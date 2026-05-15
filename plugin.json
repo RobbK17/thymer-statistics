@@ -17,8 +17,15 @@
     "sidebar": false
   },
   "custom": {
-    "emptyRecordsExcludeJournal": true
+    "emptyRecordsExcludeJournal": true,
+    "scanMode": "auto",
+    "largeWorkspaceThreshold": 3000,
+    "enrichBatchSize": 40,
+    "uiUpdateIntervalMs": 250,
+    "persistCache": true,
+    "cacheTtlMs": 604800000,
+    "cacheSaveDebounceMs": 1000
   },
   "home": false,
-  "version": "1.0.3"
+  "version": "1.0.4"
 }
