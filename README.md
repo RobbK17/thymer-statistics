@@ -2,7 +2,12 @@
 
 Comprehensive statistics and analytics for your [Thymer](https://thymer.com) workspace. An **App Plugin** built with the [Thymer Plugin SDK](https://github.com/thymerapp/thymer-plugin-sdk).
 
-**Source:** [github.com/RobbK17/thymer-statistics](https://github.com/RobbK17/thymer-statistics) · **Version:** 1.0.4
+**Source:** [github.com/RobbK17/thymer-statistics](https://github.com/RobbK17/thymer-statistics) · **Version:** 1.0.5
+
+## What's new in 1.0.5
+
+- **Include refs & transclusions** — Panel checkbox plus `expandLineItemReferences` in `plugin.json`; toggles `getLineItems(true)` vs `getLineItems(false)` (reference/transclusion expansion). Checkbox choice is stored per workspace in `localStorage` (`thymer-stats-prefs:v1:…`).
+- **Cache consistency** — Persisted stats include the expand flag; changing the option invalidates the saved cache and triggers a full rebuild.
 
 ## What's new in 1.0.4
 
@@ -14,7 +19,6 @@ Comprehensive statistics and analytics for your [Thymer](https://thymer.com) wor
 - **Progress bar** — shows background scan progress when line items are still being counted.
 - **Recent Activity** and **Record Distribution** — collapsible sections below the cards.
 - **Performance tuning** — `scanMode`, batch size, UI throttle, and cache TTL via `plugin.json` `custom` settings.
-- **Refresh** — clears stored cache and forces a full rebuild.
 
 ## Features
 
@@ -79,6 +83,7 @@ In the plugin’s **Configuration** (or in `plugin.json` under `custom`):
 | `largeWorkspaceThreshold` | `3000` | Record count at which `auto` uses background scanning. |
 | `enrichBatchSize` | `40` | Records processed per background batch. |
 | `uiUpdateIntervalMs` | `250` | Minimum interval between card/progress UI updates during scan. |
+| `expandLineItemReferences` | `false` | When `true`, counts use `getLineItems(true)` (includes reference/transclusion targets; slower, higher totals). |
 | `persistCache` | `true` | Save stats to `localStorage` (per workspace) for fast reopen. |
 | `cacheTtlMs` | `604800000` (7 days) | Discard stored cache when older than this (`0` = no expiry). |
 | `cacheSaveDebounceMs` | `1000` | Debounce before writing cache to storage. |
@@ -92,11 +97,14 @@ Example:
   "largeWorkspaceThreshold": 3000,
   "enrichBatchSize": 40,
   "uiUpdateIntervalMs": 250,
+  "expandLineItemReferences": false,
   "persistCache": true,
   "cacheTtlMs": 604800000,
   "cacheSaveDebounceMs": 1000
 }
 ```
+
+**Include refs & transclusions** — Checkbox in the panel header (saved per workspace in `localStorage` as `thymer-stats-prefs:v1:…`) overrides `expandLineItemReferences` from config after you change it once. Remove that key in DevTools to follow `plugin.json` again.
 
 ### Cache behavior
 

@@ -24,8 +24,9 @@
     "uiUpdateIntervalMs": 250,
     "persistCache": true,
     "cacheTtlMs": 604800000,
-    "cacheSaveDebounceMs": 1000
+    "cacheSaveDebounceMs": 1000,
+    "expandLineItemReferences": false
   },
   "home": false,
-  "version": "1.0.4"
+  "version": "1.0.5"
 }

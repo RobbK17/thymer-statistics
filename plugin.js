@@ -1,5 +1,5 @@
 /**
- * Stats Dashboard — hybrid load, localStorage cache, event deltas. v1.0.4
+ * Stats Dashboard — hybrid load, localStorage cache, event deltas. v1.0.5
  */
 
 const STATS_CACHE_STORAGE_VERSION = 1;
@@ -167,6 +167,7 @@ class Plugin extends AppPlugin {
       persistCache: custom.persistCache !== false,
       cacheTtlMs: custom.cacheTtlMs ?? 7 * 24 * 60 * 60 * 1000,
       cacheSaveDebounceMs: custom.cacheSaveDebounceMs ?? 1000,
+      expandLineItemReferences: custom.expandLineItemReferences === true,
     };
   }
 
@@ -180,6 +181,34 @@ class Plugin extends AppPlugin {
 
   _storageKey() {
     return `thymer-stats:v${STATS_CACHE_STORAGE_VERSION}:${this.getWorkspaceGuid()}`;
+  }
+
+  _prefsStorageKey() {
+    return `thymer-stats-prefs:v${STATS_CACHE_STORAGE_VERSION}:${this.getWorkspaceGuid()}`;
+  }
+
+  /** When true, `getLineItems(true)` includes reference/transclusion targets (heavier, higher totals). */
+  _getExpandLineItemReferences() {
+    try {
+      const raw = localStorage.getItem(this._prefsStorageKey());
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (typeof p.expandLineItemReferences === 'boolean') {
+          return p.expandLineItemReferences;
+        }
+      }
+    } catch (_) { /* ignore */ }
+    return this._getScanOptions().expandLineItemReferences;
+  }
+
+  _setExpandLineItemReferences(value, panel) {
+    try {
+      localStorage.setItem(
+        this._prefsStorageKey(),
+        JSON.stringify({ expandLineItemReferences: !!value }),
+      );
+    } catch (_) { /* ignore */ }
+    this.renderStatsPanel(panel, true);
   }
 
   _loadPersistedCache() {
@@ -205,6 +234,7 @@ class Plugin extends AppPlugin {
     if (opts.cacheTtlMs > 0 && blob.builtAt) {
       if (Date.now() - blob.builtAt > opts.cacheTtlMs) return false;
     }
+    if (blob.expandLineItemReferences !== this._getExpandLineItemReferences()) return false;
     return true;
   }
 
@@ -242,6 +272,7 @@ class Plugin extends AppPlugin {
     return {
       version: STATS_CACHE_STORAGE_VERSION,
       workspaceGuid: this.getWorkspaceGuid(),
+      expandLineItemReferences: this._getExpandLineItemReferences(),
       builtAt: Date.now(),
       phase: cache.phase,
       progress: { done: cache.progress.done, total: cache.progress.total },
@@ -631,7 +662,7 @@ class Plugin extends AppPlugin {
       for (const entry of batch) {
         if (generation !== this._enrichGeneration) return;
         try {
-          const lineItems = await entry.record.getLineItems(false);
+          const lineItems = await entry.record.getLineItems(this._getExpandLineItemReferences());
           this._applyLineItemsToCache(cache, entry, lineItems);
         } catch (_) {
           entry.scanned = true;
@@ -653,7 +684,7 @@ class Plugin extends AppPlugin {
     const queue = cache.enrichQueue.splice(0);
     for (const entry of queue) {
       if (generation !== this._enrichGeneration) return;
-      const lineItems = await entry.record.getLineItems(false);
+      const lineItems = await entry.record.getLineItems(this._getExpandLineItemReferences());
       this._applyLineItemsToCache(cache, entry, lineItems);
     }
     cache.progress.done = cache.progress.total;
@@ -809,7 +840,7 @@ class Plugin extends AppPlugin {
     if (!record) return;
 
     try {
-      const lineItems = await record.getLineItems(false);
+      const lineItems = await record.getLineItems(this._getExpandLineItemReferences());
       this._applyLineItemsToCache(cache, entry, lineItems);
       cache.detailDirty.add('records');
       cache.detailDirty.add('lineitems');
@@ -999,11 +1030,18 @@ class Plugin extends AppPlugin {
 
   _buildShellHTML(cache, userName) {
     const s = this._cacheToStats(cache);
+    const expandRefs = this._getExpandLineItemReferences();
     return `
 <div class="ws-root">
   <div class="ws-header">
     <h1>📊 ${this.ui.htmlEscape(userName)}'s Stats</h1>
-    <button class="ws-refresh-btn" data-action="refresh">🔄 Refresh</button>
+    <div class="ws-header-actions">
+      <label class="ws-expand-refs-label" title="When checked, line item counts include content pulled in via references and transclusions (slower, higher counts).">
+        <input type="checkbox" data-action="toggle-expand-refs" ${expandRefs ? 'checked' : ''} />
+        <span>Include refs &amp; transclusions</span>
+      </label>
+      <button class="ws-refresh-btn" data-action="refresh">🔄 Refresh</button>
+    </div>
   </div>
   <div class="ws-progress" style="display:none">
     <div class="ws-progress-label">Scanning content…</div>
@@ -1334,6 +1372,10 @@ class Plugin extends AppPlugin {
       this.renderStatsPanel(panel, true);
     });
 
+    el.querySelector('[data-action="toggle-expand-refs"]')?.addEventListener('change', (e) => {
+      this._setExpandLineItemReferences(e.target.checked, panel);
+    });
+
     el.querySelectorAll('.ws-card').forEach((card) => {
       card.addEventListener('click', () => {
         const key = card.dataset.section;
@@ -1479,6 +1521,25 @@ class Plugin extends AppPlugin {
         margin-bottom: 12px;
       }
       .ws-header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+      .ws-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .ws-expand-refs-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        user-select: none;
+        color: inherit;
+        opacity: 0.9;
+      }
+      .ws-expand-refs-label input { cursor: pointer; margin: 0; }
       .ws-refresh-btn {
         padding: 6px 14px;
         background: var(--color-bg-2, rgba(0,0,0,0.05));
