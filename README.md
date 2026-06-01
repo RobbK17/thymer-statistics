@@ -2,7 +2,12 @@
 
 Comprehensive statistics and analytics for your [Thymer](https://thymer.com) workspace. An **App Plugin** built with the [Thymer Plugin SDK](https://github.com/thymerapp/thymer-plugin-sdk).
 
-**Source:** [github.com/RobbK17/thymer-statistics](https://github.com/RobbK17/thymer-statistics) · **Version:** 1.0.5
+**Source:** [github.com/RobbK17/thymer-statistics](https://github.com/RobbK17/thymer-statistics) · **Version:** 1.0.6
+
+## What's new in 1.0.6
+
+- **Scan modal** — Loading and background-enrich progress appear in a centered overlay dialog (styled like the Notes Manager help box) scoped to the stats panel, instead of an inline progress strip.
+- **Split-panel layout** — Dashboard content centers correctly when the screen is split horizontally; the panel host fills the column and caps content at 1200px.
 
 ## What's new in 1.0.5
 
@@ -16,7 +21,7 @@ Comprehensive statistics and analytics for your [Thymer](https://thymer.com) wor
 - **Lazy detail panels** — detail HTML is built when you open a card, not on initial load.
 - **localStorage cache** — stats persist per workspace in the browser; reopen restores cached data and only rescans new or missing records.
 - **Live cache updates** — `record` and `lineitem` events update stats incrementally; changes are saved to storage (debounced).
-- **Progress bar** — shows background scan progress when line items are still being counted.
+- **Scan modal** — loading and enrich progress in a panel-scoped overlay (see 1.0.6).
 - **Recent Activity** and **Record Distribution** — collapsible sections below the cards.
 - **Performance tuning** — `scanMode`, batch size, UI throttle, and cache TTL via `plugin.json` `custom` settings.
 

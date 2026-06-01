@@ -1,5 +1,5 @@
 /**
- * Stats Dashboard — hybrid load, localStorage cache, event deltas. v1.0.5
+ * Stats Dashboard — hybrid load, localStorage cache, event deltas. v1.0.6
  */
 
 const STATS_CACHE_STORAGE_VERSION = 1;
@@ -92,11 +92,13 @@ class Plugin extends AppPlugin {
     const opts = this._getScanOptions();
 
     const el = panel.getElement();
-    el.innerHTML = `
-      <div class="ws-loading" style="padding:40px;text-align:center">
-        <div class="ws-spinner"></div>
-        <p class="ws-loading-msg" style="margin-top:18px;opacity:0.5;font-size:13px">Loading workspace metadata…</p>
-      </div>`;
+    el.classList.add('ws-panel-host');
+    el.innerHTML = this._buildScanOverlayHTML();
+    this._showScanModal(el, {
+      title: 'Loading workspace',
+      message: 'Loading workspace metadata…',
+      showProgress: false,
+    });
 
     let cache = null;
 
@@ -105,8 +107,11 @@ class Plugin extends AppPlugin {
     } else if (opts.persistCache) {
       const blob = this._loadPersistedCache();
       if (blob && this._isPersistedValid(blob)) {
-        const msg = el.querySelector('.ws-loading-msg');
-        if (msg) msg.textContent = 'Restoring cached stats…';
+        this._showScanModal(el, {
+          title: 'Loading workspace',
+          message: 'Restoring cached stats…',
+          showProgress: false,
+        });
         cache = this._deserializeCache(blob);
         cache = await this._scanMetadata(generation, cache);
         if (generation !== this._enrichGeneration) return;
@@ -992,28 +997,74 @@ class Plugin extends AppPlugin {
     set('views', s.totalViews.toLocaleString(), null);
   }
 
+  _buildScanOverlayHTML() {
+    return `
+    <div class="ws-scan-overlay" hidden>
+      <div class="ws-scan-dialog" role="dialog" aria-modal="true" aria-labelledby="ws-scan-title" aria-live="polite">
+        <div class="ws-spinner ws-scan-spinner" aria-hidden="true"></div>
+        <p id="ws-scan-title" class="ws-scan-title">Scanning content</p>
+        <p class="ws-scan-message">Preparing…</p>
+        <div class="ws-scan-progress-wrap" hidden>
+          <p class="ws-scan-progress-label"></p>
+          <div class="ws-progress-track"><div class="ws-progress-fill"></div></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  _showScanModal(el, { title, message, showProgress, done, total }) {
+    let overlay = el.querySelector('.ws-scan-overlay');
+    if (!overlay) {
+      el.insertAdjacentHTML('beforeend', this._buildScanOverlayHTML());
+      overlay = el.querySelector('.ws-scan-overlay');
+    }
+    if (!overlay) return;
+
+    const titleEl = overlay.querySelector('.ws-scan-title');
+    const msgEl = overlay.querySelector('.ws-scan-message');
+    const progressWrap = overlay.querySelector('.ws-scan-progress-wrap');
+    const progressLabel = overlay.querySelector('.ws-scan-progress-label');
+    const fill = overlay.querySelector('.ws-progress-fill');
+
+    if (titleEl && title) titleEl.textContent = title;
+    if (msgEl && message != null) msgEl.textContent = message;
+
+    if (progressWrap) {
+      if (showProgress && total > 0) {
+        progressWrap.hidden = false;
+        const pct = Math.round((done / total) * 100);
+        if (progressLabel) {
+          progressLabel.textContent =
+            `${done.toLocaleString()} / ${total.toLocaleString()} records (${pct}%)`;
+        }
+        if (fill) fill.style.width = `${pct}%`;
+      } else {
+        progressWrap.hidden = true;
+        if (fill) fill.style.width = '0%';
+      }
+    }
+
+    overlay.hidden = false;
+  }
+
+  _hideScanModal(el) {
+    const overlay = el.querySelector('.ws-scan-overlay');
+    if (overlay) overlay.hidden = true;
+  }
+
   _updateProgressUI(el, cache) {
-    const bar = el.querySelector('.ws-progress');
-    if (!bar) return;
-
-    if (cache.phase === 'ready') {
-      bar.style.display = 'none';
+    if (cache.phase === 'ready' || cache.phase === 'metadata' || cache.progress.total === 0) {
+      this._hideScanModal(el);
       return;
     }
 
-    if (cache.phase === 'metadata' || cache.progress.total === 0) {
-      bar.style.display = 'none';
-      return;
-    }
-
-    const pct = Math.round((cache.progress.done / cache.progress.total) * 100);
-    bar.style.display = 'block';
-    const fill = bar.querySelector('.ws-progress-fill');
-    const label = bar.querySelector('.ws-progress-label');
-    if (fill) fill.style.width = `${pct}%`;
-    if (label) {
-      label.textContent = `Scanning content… ${cache.progress.done.toLocaleString()} / ${cache.progress.total.toLocaleString()} records (${pct}%)`;
-    }
+    this._showScanModal(el, {
+      title: 'Scanning content',
+      message: 'Counting line items and tasks across your workspace. You can browse summary cards while this runs.',
+      showProgress: true,
+      done: cache.progress.done,
+      total: cache.progress.total,
+    });
   }
 
   _maybeRefreshOpenDetail(el, cache, uiState) {
@@ -1035,17 +1086,11 @@ class Plugin extends AppPlugin {
 <div class="ws-root">
   <div class="ws-header">
     <h1>📊 ${this.ui.htmlEscape(userName)}'s Stats</h1>
-    <div class="ws-header-actions">
-      <label class="ws-expand-refs-label" title="When checked, line item counts include content pulled in via references and transclusions (slower, higher counts).">
-        <input type="checkbox" data-action="toggle-expand-refs" ${expandRefs ? 'checked' : ''} />
-        <span>Include refs &amp; transclusions</span>
-      </label>
-      <button class="ws-refresh-btn" data-action="refresh">🔄 Refresh</button>
-    </div>
-  </div>
-  <div class="ws-progress" style="display:none">
-    <div class="ws-progress-label">Scanning content…</div>
-    <div class="ws-progress-track"><div class="ws-progress-fill"></div></div>
+    <label class="ws-expand-refs-label" title="When checked, line item counts include content pulled in via references and transclusions (slower, higher counts).">
+      <input type="checkbox" data-action="toggle-expand-refs" ${expandRefs ? 'checked' : ''} />
+      <span>Include refs &amp; transclusions</span>
+    </label>
+    <button class="ws-refresh-btn" data-action="refresh">🔄 Refresh</button>
   </div>
   <div class="ws-cards">
     ${this._card('collections', '📁', 'Collections', s.collections.length, null)}
@@ -1062,7 +1107,8 @@ class Plugin extends AppPlugin {
   <div class="ws-bottom">
     ${this._buildBottomHTML(s)}
   </div>
-</div>`;
+</div>
+${this._buildScanOverlayHTML()}`;
   }
 
   _card(key, emoji, label, value, sub) {
@@ -1506,27 +1552,43 @@ class Plugin extends AppPlugin {
     if (this._stylesInjected) return;
     this._stylesInjected = true;
     this.ui.injectCSS(`
+      .ws-panel-host {
+        position: relative;
+        width: 100%;
+        min-height: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
       .ws-root {
-        padding: 24px;
+        width: 100%;
         max-width: 1200px;
-        margin: 0 auto;
+        margin: 0;
+        padding: 24px;
         font-size: 13px;
         color: var(--color-text);
         box-sizing: border-box;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
       }
       .ws-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
         margin-bottom: 12px;
       }
-      .ws-header h1 { margin: 0; font-size: 22px; font-weight: 700; }
-      .ws-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+      .ws-header h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        flex: 1;
+        min-width: 12rem;
       }
       .ws-expand-refs-label {
         display: flex;
@@ -1551,13 +1613,49 @@ class Plugin extends AppPlugin {
         font-weight: 500;
       }
       .ws-refresh-btn:hover { background: var(--color-bg-3, rgba(0,0,0,0.09)); }
-      .ws-progress { margin-bottom: 16px; }
-      .ws-progress-label {
+      .ws-scan-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 200;
+        background: rgba(0, 0, 0, 0.42);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .ws-scan-overlay[hidden] { display: none; }
+      .ws-scan-dialog {
+        position: relative;
+        max-width: 440px;
+        width: 100%;
+        background: var(--cards-bg);
+        border: 1px solid var(--cards-border-color);
+        border-radius: var(--ed-radius-block);
+        padding: 24px 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        text-align: center;
+        box-sizing: border-box;
+      }
+      .ws-scan-title {
+        margin: 14px 0 6px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .ws-scan-message {
+        margin: 0 0 4px;
+        font-size: 13px;
+        line-height: 1.45;
+        opacity: 0.75;
+      }
+      .ws-scan-progress-wrap { margin-top: 14px; }
+      .ws-scan-progress-label {
         font-size: 11px;
         color: #6b7280;
-        margin-bottom: 6px;
+        margin: 0 0 6px;
         font-weight: 500;
       }
+      .ws-scan-spinner { margin: 0 auto; }
       .ws-progress-track {
         height: 4px;
         background: var(--color-bg-3, rgba(0,0,0,0.08));
